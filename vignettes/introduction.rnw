@@ -43,7 +43,7 @@
 \section{Introduction}
 %------------------------------------------------------------ 
 
-.
+ssde is an R package for differential gene expression (DE) analysis between two single samples. Specifically, ssde prioritizes genes that are overdispersed when comparing the test and control expression profiles. ssde is able to recapitulate a decent amount of ground-truth genes determined from regular DE analyses. ssde thus provides a reasonable compromise for DE analysis when only single samples are available.
 
 %------------------------------------------------------------
 \section{Installation}

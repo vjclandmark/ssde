@@ -1,7 +1,7 @@
 Package: ssde
 Title: Single Sample Differential Gene Expression Analysis
 Version: 0.99.0
-Authors@R: person("Hongxu", "Ding", role=c("aut", "cre", "ctb", "cph"), email="dinghongxu1130@gmail.com")
+Authors@R: person("Hongxu", "Ding", role=c("aut", "cre"), email="dinghongxu1130@gmail.com")
 Description: Prioritize differentially expressed genes for single sample-single sample comparisons.
 License: GPL-2
 Encoding: UTF-8
