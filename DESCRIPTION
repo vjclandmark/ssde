@@ -6,8 +6,9 @@ Description: Prioritize differentially expressed genes for single sample-single 
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
+VignetteBuilder: knitr
 Imports: stats, utils, grDevices
-Suggests: bcellViper, graphics
+Suggests: bcellViper, graphics, BiocStyle, knitr, rmarkdown
 biocViews: StatisticalMethod, DifferentialExpression
 URL: https://github.com/hd2326/ssde
 BugReports: https://github.com/hd2326/ssde/issues

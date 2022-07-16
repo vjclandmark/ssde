@@ -14,6 +14,8 @@
 #' 
 #' @param epoch (numeric) The number of permutations for building null models for calculating empirical p-values.
 #' 
+#' @param verbose (numeric) Whether to show the progress bar.
+#' 
 #' @return (list) A list containing the k, h, d and p values, as the ssde result.
 #'
 #' @examples
@@ -31,7 +33,7 @@
 #' 
 #' @export
 
-ssde <- function(x, y, k=NULL, h=NULL, neighbor=200, epoch=1000, seed=1){
+ssde <- function(x, y, k=NULL, h=NULL, neighbor=200, epoch=1000, seed=1, verbose=FALSE){
   if (is.null(names(x)) | is.null(names(y))) stop("x and/or y gene names missing")
   if (sum(names(x) != names(y)) > 0) stop("require matching x and y")
   # check expression profiles
@@ -45,10 +47,10 @@ ssde <- function(x, y, k=NULL, h=NULL, neighbor=200, epoch=1000, seed=1){
   dvalue <- d2l(x, y, k, h)
   # distance towards the baseline
   
-  pb <- txtProgressBar(0, length(dvalue), style=3)
+  if (verbose) pb <- txtProgressBar(0, length(dvalue), style=3)
   pvalue <- numeric()
   for (i in 1:length(dvalue)){
-    setTxtProgressBar(pb, i)
+    if (verbose) setTxtProgressBar(pb, i)
     null <- ssnull(x, y, names(dvalue)[i], neighbor, epoch, seed)
     px <- d2l(null$xnull[, "x"], null$xnull[, "y"], k, h)
     px <- 1-ecdf(px)(dvalue[i])

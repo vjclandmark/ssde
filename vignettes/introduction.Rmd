@@ -1,0 +1,132 @@
+---
+  title: "ssde: An R Package for Single Sample Differential Gene Expression Analysis"
+  author:
+  - name: Hongxu Ding
+    affiliation: Department of Pharmacy Practice and Science, University of Arizona
+    email: dinghongxu1130@gmail.com
+  package: ssde
+  abstract: ssde is an R package for differential gene expression (DE) analysis between two single samples. Specifically, ssde prioritizes genes that are overdispersed when comparing the test and control expression profiles. ssde is able to recapitulate a decent amount of ground-truth genes determined from regular DE analyses. ssde thus provides a reasonable compromise for DE analysis when only single samples are available.
+  output: 
+    BiocStyle::html_document
+  vignette: >
+    %\VignetteIndexEntry{introduction}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installation
+
+To obtain our pacakge as well as run the following example:
+```{r eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("ssde", "bcellViper"))
+```
+
+## Data Preparation
+
+We use the `bcellViper` dataset as an example for the `ssde` analysis. Without losing generality, we focus on the "HD" and "pDLCL" groups, which are transcriptomically different as shown in the following PCA plot:
+
+```{r, message=FALSE}
+options(warn=-1)
+
+library(ssde)
+library(bcellViper)
+data(bcellViper)
+
+hd <- rownames(dset@phenoData@data)[dset@phenoData@data$description == "HD"]
+hd <- dset@assayData$exprs[, hd]
+pdlcl <- rownames(dset@phenoData@data)[dset@phenoData@data$description == "pDLCL"]
+pdlcl <- dset@assayData$exprs[, pdlcl]
+# expression matrix for HD and pDLCL samples
+
+pca <- prcomp(t(cbind(hd, pdlcl)))
+plot(pca$x[, 1:2], col = c(rep(1, ncol(hd)), rep(2, ncol(pdlcl))))
+legend("bottomleft", legend = c("HD", "pDLCL"), text.col = 1:2, bty = "n")
+# PCA plot
+```
+
+## ssde
+
+We then perform single sample differential expression analysis between "HD" sample "GSM44113" and "pDLCL" sample "GSM44246" with the `ssde()` main function:
+
+```{r, message=FALSE}
+x <- hd[, "GSM44113"]
+y <- pdlcl[, "GSM44246"]
+res <- ssde(x, y, k=1, h=0, epoch=1000)
+# ssde analysis
+```
+
+`ssde` considers genes that are overdispersed as opposed to the transcriptome average behavior to be differentially expressed. `ssde` estimates such an average behavior by fitting a linear model between the test and the control samples. For a specific gene, `ssde` quantifies its distance towards the fitted line (dvalue) as the degree of dispersion. `ssde` further tests whether such a dispersion is statistically different as opposed to other genes with similar expression levels (pvalue). We thus prioritize genes that pass both pvalue and dvalue thresholds (marked in red):
+
+```{r, message=FALSE}
+color <- rep(8, nrow(hd))
+color[res$pvalue <= 0.01 & res$dvalue < 3] <- 4
+color[res$pvalue <= 0.01 & res$dvalue >= 3] <- 2
+color[res$pvalue > 0.01 & res$dvalue >= 3] <- 6
+plot(x, y, xlab = "GSM44113", ylab = "GSM44246", col = color, cex = 0.2)
+abline(res$h, res$k, NULL, NULL)
+legend("bottomleft", legend = c(paste("k=", signif(res$k, 2), sep=""),
+                                paste("h=", signif(res$h, 2), sep="")), bty = "n")
+# sample-sample scatterplot
+```
+
+The above scatterplot shows the comparison between test and control gene expression profiles. Each dot represents a gene, and is color-coded based on the following pvalue-dvalue comparison scatterplot:
+
+```{r, message=FALSE}
+plot(res$dvalue, unlist(lapply(res$pvalue, function(p) min(5, -log10(p)))),
+     col = color, cex = 0.2, xlab = "dvalue", ylab = "-log10(pvalue)")
+abline(NULL, NULL, 2, 3, col = 1, lty = 2, lwd = 1)
+# dvalue-pvalue scatterplot
+```
+
+## Regular DE
+
+We perform the regular multiple sample-multiple sample DE analysis between the "HD" and "pDLCL" groups as the groundtruth for benchmarking `ssde`:
+
+```{r, message=FALSE}
+p <- structure(unlist(lapply(1:nrow(hd), function(i, hd, pdlcl){
+  t.test(hd[i, ], pdlcl[i, ], alternative="two.sided")$p.value
+}, hd=hd, pdlcl=pdlcl)), names=rownames(hd))
+fc <- log2(rowMeans(hd)/rowMeans(pdlcl))
+# t-test p-value and log2(fc)
+```
+
+## Regular DE VS ssde
+
+To cross-compare, we show the `ssde` results (color-coded based on the above pvalue-dvalue comparison) on the regular DE volcano plot:
+
+```{r, message=FALSE}
+cex <- unlist(lapply(res$dvalue, function(x) max(0.2, (sqrt(x) - 1))))
+plot(fc, -log10(p), cex = cex, col = color, xlab = "log2(fc)", ylab = "-log10(p)")
+legend("topright", legend = c("d=0", "d=3", "d=6"), pch = 1, pt.cex = c(0.4, 1.7, 2.4), bty = "n")
+# volcano plot
+```
+
+We further perform the ROC analysis to quantitatively benchmark the performance of `ssde`. Specifically, we consider genes that are differentially expressed in the regular DE analysis as groundtruth. We select such groundtruth genes based on their p and log2(fc) values:
+
+```{r, message=FALSE}
+cp <- rownames(hd)[p <= 0.01 & abs(fc) >= 1]
+cn <- rownames(hd)[p > 0.01 | abs(fc) < 1]
+roc <- do.call(rbind, lapply(seq(0, -5, -0.5), function(i, res, cp, cn){
+  do.call(rbind, lapply(seq(0, 5, 0.5), function(j, i, res, cp, cn){
+    pp <- names(res$dvalue)[res$dvalue >= j & res$pvalue <= 10^i]
+    tpr <- length(intersect(cp, pp))/length(cp)
+    fpr <- length(setdiff(pp, cp))/length(cn)
+    structure(c(tpr, fpr), names=c("tpr", "fpr"))
+  }, i=i, res=res, cp=cp, cn=cn))
+}, res=res, cp=cp, cn=cn))
+plot(roc[, "fpr"], roc[, "tpr"], xlim = c(0, 1), ylim = c(0, 1), xlab = "FPR", ylab = "TPR")
+abline(0, 1, NULL, NULL)
+legend("bottomright", legend = c("P: p<0.01 & abs(fc)>1", "N: p>0.01 | abs(fc)<1"), bty = "n")
+```
+
+## Session Information
+
+```{r}
+sessionInfo()
+```

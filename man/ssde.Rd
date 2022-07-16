@@ -4,7 +4,16 @@
 \alias{ssde}
 \title{Single Sample Differential Expression}
 \usage{
-ssde(x, y, k = NULL, h = NULL, neighbor = 200, epoch = 1000, seed = 1)
+ssde(
+  x,
+  y,
+  k = NULL,
+  h = NULL,
+  neighbor = 200,
+  epoch = 1000,
+  seed = 1,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{x}{(numeric) X-coordinates.}
@@ -18,6 +27,8 @@ ssde(x, y, k = NULL, h = NULL, neighbor = 200, epoch = 1000, seed = 1)
 \item{neighbor}{(numeric) The number of neighboring genes for calculating empirical p-values.}
 
 \item{epoch}{(numeric) The number of permutations for building null models for calculating empirical p-values.}
+
+\item{verbose}{(numeric) Whether to show the progress bar.}
 }
 \value{
 (list) A list containing the k, h, d and p values, as the ssde result.
